@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SaaS Tax Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#f6f4ee; --surface:#ffffff; --surface-2:#efece3; --ink:#1c1a15; --ink-2:#54503f; --ink-3:#8a846f;
+  --line:#e0d9c6; --gold:#9a7b2c; --gold-soft:#f3ebd3; --gold-ink:#6f561a;
+  --brand:#9a7b2c; --tax:#b4532a; --tax-soft:#f8e4d9; --fee:#5b6b8c; --fee-soft:#e3e8f2; --keep:#2f7a4f; --keep-soft:#e2f1e7;
+  --sans:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;
+  --bg:#12110e;--surface:#1b1a16;--surface-2:#24221c;--ink:#efe9da;--ink-2:#bdb5a0;--ink-3:#8a836f;--line:#36322a;
+  --gold:#c7ae6a;--gold-soft:#2c2718;--gold-ink:#e0c888;--brand:#c7ae6a;--tax:#e8875a;--tax-soft:#35221a;--fee:#93a6cc;--fee-soft:#1c2333;--keep:#6cc493;--keep-soft:#16281d}}
+:root[data-theme="dark"]{color-scheme:dark;
+  --bg:#12110e;--surface:#1b1a16;--surface-2:#24221c;--ink:#efe9da;--ink-2:#bdb5a0;--ink-3:#8a836f;--line:#36322a;
+  --gold:#c7ae6a;--gold-soft:#2c2718;--gold-ink:#e0c888;--brand:#c7ae6a;--tax:#e8875a;--tax-soft:#35221a;--fee:#93a6cc;--fee-soft:#1c2333;--keep:#6cc493;--keep-soft:#16281d}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.group > label.toggle{font:400 14px var(--sans);text-transform:none;letter-spacing:0;color:var(--ink-2)}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;padding-inline:18px;padding-block:28px 64px;margin:0}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+h1{font-size:clamp(26px,4vw,38px);font-weight:800}
+h2{font-size:22px;font-weight:800}
+h3{font-size:15px;font-weight:700}
+p{margin:0}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-ink)}
+.lede{color:var(--ink-2);font-size:16px;max-width:72ch}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+section{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.answers{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.answers .card{display:flex;flex-direction:column;gap:6px}
+.answers .q{font-size:12px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em}
+.answers p{color:var(--ink-2);font-size:14px}
+.answers b{color:var(--ink)}
+.demo-tag{display:inline-block;font:700 10px var(--sans);letter-spacing:.1em;text-transform:uppercase;background:var(--tax-soft);color:var(--tax);padding:3px 8px;border-radius:999px}
+
+/* simulator layout */
+.sim{display:grid;grid-template-columns:300px 1fr 1fr;gap:16px;align-items:start}
+@media (max-width:1060px){.sim{grid-template-columns:1fr 1fr}.controls{grid-column:1/-1}}
+@media (max-width:700px){.sim{grid-template-columns:1fr}}
+.controls{display:flex;flex-direction:column;gap:16px}
+.group{display:flex;flex-direction:column;gap:8px}
+.group > label,.glabel{font-size:12px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 13px var(--sans);border:1px solid var(--line);background:var(--surface);color:var(--ink-2);padding:6px 10px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip:disabled{opacity:.45;cursor:not-allowed}
+.chip:focus-visible,.toggle input:focus-visible+span,select:focus-visible,input[type=range]:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.toggle{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-2);cursor:pointer}
+.toggle input{position:absolute;opacity:0;width:1px;height:1px}
+.toggle span.sw{width:38px;height:22px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);position:relative;flex:none;transition:background .2s}
+.toggle span.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--ink-3);transition:transform .2s,background .2s}
+.toggle input:checked+span.sw{background:var(--gold-soft);border-color:var(--gold)}
+.toggle input:checked+span.sw::after{transform:translateX(16px);background:var(--gold)}
+.hint{font-size:12.5px;color:var(--ink-3)}
+.tg{display:flex;flex-direction:column;gap:4px;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+.tg:last-child{border-bottom:0;padding-bottom:0}
+.tg .hint b{color:var(--ink-2)}
+
+/* fake checkout */
+.checkout{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.co-top{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.co-brand{font-weight:800;letter-spacing:.04em}
+.co-body{padding:18px;display:flex;flex-direction:column;gap:12px}
+.co-plan{display:flex;justify-content:space-between;align-items:baseline}
+.co-plan .name{font-weight:700}
+.co-line{display:flex;justify-content:space-between;font-size:14px;color:var(--ink-2)}
+.co-line.tax{color:var(--tax);font-weight:600}
+.co-line.total{font-size:20px;font-weight:800;color:var(--ink);border-top:1px solid var(--line);padding-top:12px}
+.co-field{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--ink-3);display:flex;justify-content:space-between}
+.co-field b{color:var(--ink);font-weight:600}
+.co-btn{background:var(--ink);color:var(--bg);border-radius:8px;text-align:center;padding:11px;font-weight:700;font-size:14px}
+.co-note{font-size:12.5px;color:var(--ink-3)}
+
+/* money split */
+.split{display:flex;flex-direction:column;gap:14px}
+.bar{display:flex;height:34px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.bar div{display:flex;align-items:center;justify-content:center;font:600 12px var(--mono);color:#fff;white-space:nowrap;overflow:hidden;transition:flex-basis .35s ease}
+.b-keep{background:var(--keep)}.b-tax{background:var(--tax)}.b-fee{background:var(--fee)}
+.legend{display:flex;flex-direction:column;gap:8px}
+.lg{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:start;font-size:14px}
+.lg i{width:12px;height:12px;border-radius:3px;margin-top:4px}
+.lg .v{font-family:var(--mono);font-weight:600}
+.lg small{display:block;color:var(--ink-3);font-size:12.5px}
+.flow{display:flex;flex-direction:column;gap:0}
+.step{display:grid;grid-template-columns:28px 1fr;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line);font-size:14px;color:var(--ink-2)}
+.step:last-child{border-bottom:0}
+.step .dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 12px var(--mono);background:var(--gold-soft);color:var(--gold-ink)}
+.step b{color:var(--ink)}
+.who{display:inline-block;font:700 10px var(--sans);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:999px;margin-left:6px;vertical-align:1px}
+.who.s{background:var(--fee-soft);color:var(--fee)}.who.g{background:var(--gold-soft);color:var(--gold-ink)}.who.c{background:var(--surface-2);color:var(--ink-2)}.who.t{background:var(--tax-soft);color:var(--tax)}
+
+.respons{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+.respons ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--ink-2)}
+.respons .card{display:flex;flex-direction:column;gap:10px}
+.respons .card.s{border-top:4px solid var(--fee)}.respons .card.g{border-top:4px solid var(--gold)}.respons .card.m{border-top:4px solid var(--keep)}
+
+.year{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}
+@media (max-width:820px){.year{grid-template-columns:1fr}}
+input[type=range]{width:100%;accent-color:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.stat{background:var(--surface-2);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.stat .k{font-size:12px;color:var(--ink-3);font-weight:600}
+.stat .v{font:600 22px var(--mono)}
+.stat.tax .v{color:var(--tax)}.stat.keep .v{color:var(--keep)}.stat.fee .v{color:var(--fee)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:13.5px}
+th{background:var(--surface-2);text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);padding:9px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tr.sel td{background:var(--gold-soft)}
+.foot{font-size:12.5px;color:var(--ink-3)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+<div class="wrap">
+<header style="display:flex;flex-direction:column;gap:12px">
+  <span class="eyebrow">SaaS subscriptions · tax and payment fees · interactive explainer</span>
+  <h1>Where the money from one subscription goes</h1>
+  <p class="lede"><b>ABC Software AG</b>, a fictional SaaS company registered in Zurich, Switzerland, sells three plans worldwide through Stripe. Choose a country, plan and type of buyer to see the checkout the subscriber sees, how the payment splits between tax, Stripe fees and ABC, and who sends the tax to the government and when. All figures are illustrative, not tax advice.</p>
+</header>
+
+<section>
+  <span class="eyebrow">The basics</span>
+  <div class="answers">
+    <div class="card"><span class="q">Price is $29, then tax is added?</span><p><b>Yes, that's the usual set-up.</b> The plan shows $29. At checkout Stripe reads the buyer's billing country and card and adds that country's VAT/GST/sales tax. A German pays $34.51; a Floridian pays $29.</p></div>
+    <div class="card"><span class="q">Does ABC get $29 + tax?</span><p><b>It receives it, but the tax part isn't ABC's money.</b> It holds it for a few weeks, then pays it to that country's tax office. It keeps $29 minus Stripe fees.</p></div>
+    <div class="card"><span class="q">What is a "return"?</span><p><b>A tax return is a periodic report plus payment</b>: "This quarter we collected $X of German VAT; here it is." It's filed monthly, quarterly or yearly depending on the country.</p></div>
+    <div class="card"><span class="q">What tax does ABC itself pay?</span><p><b>Profit tax in its home country</b> (Switzerland here, roughly 12–21% depending on canton), only on profit after costs. The VAT/GST collected is passed on, not paid from ABC's own pocket.</p></div>
+    <div class="card"><span class="q">Does Stripe handle everything?</span><p><b>Stripe Tax calculates, shows and collects the tax.</b> ABC still registers, files returns and pays, unless it buys Stripe's filing service or uses a merchant of record that takes it all over.</p></div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Try it</span>
+  <h2>Subscription simulator</h2>
+  <div class="sim">
+    <div class="card controls">
+      <div class="group"><span class="glabel" id="lbl-country">Subscriber's country</span><div class="chips" id="countries" role="group" aria-labelledby="lbl-country"></div></div>
+      <div class="group"><span class="glabel" id="lbl-plan">Plan</span><div class="chips" id="plans" role="group" aria-labelledby="lbl-plan"></div></div>
+      <div class="group"><span class="glabel" id="lbl-int">Billing</span><div class="chips" id="intervals" role="group" aria-labelledby="lbl-int"></div></div>
+      <div class="group">
+        <div class="tg"><label class="toggle" for="b2b"><input type="checkbox" id="b2b"><span class="sw"></span>Buyer is a business with a tax number</label>
+        <p class="hint"><b>Off:</b> a person buying for themselves. <b>On:</b> a company enters its VAT/GST number (e.g. DE123456789). In most countries the business then pays the tax itself, so checkout shows 0%.</p></div>
+        <div class="tg"><label class="toggle" for="reg"><input type="checkbox" id="reg" checked><span class="sw"></span>ABC has signed up for tax in this country</label>
+        <p class="hint">Some countries only make a foreign seller charge tax after its sales there pass a limit, e.g. AUD 75,000 a year in Australia. <b>Off:</b> ABC is still under the limit, so no tax is added. <b>On:</b> ABC has registered and must add the tax.</p>
+        <p class="hint" id="regHint"></p></div>
+        <div class="tg"><label class="toggle" for="incl"><input type="checkbox" id="incl"><span class="sw"></span>Price already includes tax</label>
+        <p class="hint"><b>Off:</b> $29 + tax at checkout, so the customer pays more. <b>On:</b> the customer always pays $29 and the tax comes out of it, so ABC keeps less.</p></div>
+        <div class="tg"><label class="toggle" for="noconv"><input type="checkbox" id="noconv"><span class="sw"></span>ABC has a US-dollar bank account in Stripe</label>
+        <p class="hint">ABC is Swiss, so Stripe normally converts dollars into Swiss francs before paying out, and charges 2% for it. <b>On:</b> ABC added a USD bank account, dollars are paid out as dollars, and the 2% is saved.</p></div>
+      </div>
+    </div>
+
+    <div class="checkout" aria-live="polite">
+      <div class="co-top"><span class="co-brand">ABC Software</span><span class="demo-tag">Demo checkout, not real</span></div>
+      <div class="co-body">
+        <div class="co-plan"><span class="name" id="coPlan">Standard · monthly</span><span class="num" id="coBase">$29.00</span></div>
+        <div class="co-field"><span>Billing country</span><b id="coCountry">Germany</b></div>
+        <div class="co-field" id="coTaxIdRow" hidden><span>Business tax ID</span><b id="coTaxId">DE123456789 ✓</b></div>
+        <div class="co-line"><span>Subtotal</span><span class="num" id="coSub">$29.00</span></div>
+        <div class="co-line tax"><span id="coTaxLbl">VAT (19%)</span><span class="num" id="coTax">$5.51</span></div>
+        <div class="co-line total"><span>Total due today</span><span class="num" id="coTotal">$34.51</span></div>
+        <div class="co-btn">Subscribe</div>
+        <p class="co-note" id="coNote"></p>
+      </div>
+    </div>
+
+    <div class="card split">
+      <h3>Where the <span class="num" id="splitTotal">$34.51</span> goes</h3>
+      <div class="bar" aria-hidden="true"><div class="b-keep" id="barKeep"></div><div class="b-tax" id="barTax"></div><div class="b-fee" id="barFee"></div></div>
+      <div class="legend">
+        <div class="lg"><i style="background:var(--keep)"></i><span>ABC keeps<small>Revenue before costs and profit tax</small></span><span class="v" id="vKeep"></span></div>
+        <div class="lg"><i style="background:var(--tax)"></i><span id="taxDest">To the tax office<small></small></span><span class="v" id="vTax"></span></div>
+        <div class="lg"><i style="background:var(--fee)"></i><span>Stripe fees<small id="feeBreak"></small></span><span class="v" id="vFee"></span></div>
+      </div>
+      <div class="flow" id="flow"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Stripe fees</span>
+  <h2>Stripe's fee isn't the same for every payment</h2>
+  <p class="lede">It depends on the country of the Stripe account (Switzerland in this example), where the subscriber's card is from, and whether currency is converted. Fees are a percentage of the <b>total including tax</b>.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Fee (Stripe Switzerland, published rates)</th><th>Amount</th><th>Applies when</th></tr></thead>
+    <tbody>
+      <tr><td>Swiss card</td><td class="num">2.9% + CHF 0.30</td><td>Subscriber's card is from Switzerland</td></tr>
+      <tr><td>Foreign card</td><td class="num">3.25% + CHF 0.30</td><td>Card from the EU, UK, India, US or anywhere else</td></tr>
+      <tr><td>Currency conversion</td><td class="num">+2%</td><td>Charged in USD/EUR but paid out to a CHF bank account</td></tr>
+      <tr><td>Stripe Billing (subscriptions)</td><td class="num">+0.7%</td><td>Every recurring charge, pay-as-you-go</td></tr>
+      <tr><td>Stripe Tax</td><td class="num">+0.5%</td><td>Transactions where ABC is registered to collect tax</td></tr>
+      <tr><td>Dispute (chargeback)</td><td class="num">CHF 20</td><td>Each time a customer disputes a charge</td></tr>
+    </tbody>
+  </table></div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Same $29 Standard plan</th><th>Customer pays</th><th>Approx. Stripe fees</th><th>Share of payment</th></tr></thead>
+    <tbody>
+      <tr><td>Swiss card, charged and paid out in CHF</td><td class="num">31.35</td><td class="num">≈ 1.59</td><td class="num">≈ 5%</td></tr>
+      <tr><td>German card, charged in USD, paid out in CHF</td><td class="num">$34.51</td><td class="num">≈ $2.60</td><td class="num">≈ 7.5%</td></tr>
+      <tr><td>Florida card (no tax), charged in USD, paid out in CHF</td><td class="num">$29.00</td><td class="num">≈ $2.10</td><td class="num">≈ 7%</td></tr>
+    </tbody>
+  </table></div>
+  <p class="foot">For comparison, a US Stripe account charges 2.9% + 30¢, +1.5% for international cards and +1% for currency conversion. CHF 0.30 is treated as about $0.37. Large accounts can negotiate custom pricing.</p>
+  <div class="respons">
+    <div class="card g"><h3>Avoid the 2% conversion</h3><ul><li>Add USD and EUR bank accounts to Stripe so those currencies are paid out without converting.</li><li>Or price in each customer's local currency.</li><li>Try the "Payout in the same currency" toggle above to see the difference.</li></ul></div>
+    <div class="card s"><h3>Negotiate at volume</h3><ul><li>Stripe offers custom pricing (volume discounts, interchange-plus) once monthly volume is large.</li><li>Worth asking once the subscriber base grows.</li></ul></div>
+    <div class="card m"><h3>Encourage annual plans</h3><ul><li>One charge a year instead of twelve: the fixed CHF 0.30 is paid once.</li><li>Fewer failed renewals and fewer disputes.</li><li>Try "Annual" above and compare yearly fees.</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Who does what</span>
+  <h2>Stripe's job vs ABC's job</h2>
+  <div class="respons">
+    <div class="card s"><h3>Stripe Tax does automatically</h3><ul>
+      <li>Reads billing address and card country to find the customer's location</li>
+      <li>Picks the right rate (country, US state and city, Canadian province)</li>
+      <li>Adds the tax on the checkout page and on the invoice</li>
+      <li>Validates business tax IDs and applies reverse charge (0%)</li>
+      <li>Collects the full amount, including tax, from the card</li>
+      <li>Produces reports: "tax collected per country this quarter"</li>
+      <li>Warns when sales approach a country's or US state's threshold</li>
+    </ul></div>
+    <div class="card g"><h3>ABC must still do</h3><ul>
+      <li><b>Register</b> in each country once required and enter the registration in Stripe</li>
+      <li><b>File the returns</b> on time, monthly or quarterly</li>
+      <li><b>Pay the collected tax</b> from its bank account to each tax office</li>
+      <li>Keep location evidence and records (10 years in the EU)</li>
+      <li>Decide pricing: tax on top, or included</li>
+      <li>Pay profit tax at home on its own profit</li>
+      <li class="hint">Stripe can file returns in many countries as a paid add-on (Tax Complete plans), or an accountant does it.</li>
+    </ul></div>
+    <div class="card m"><h3>Or: a merchant of record does it all</h3><ul>
+      <li>Stripe Managed Payments or Paddle legally sells the plan</li>
+      <li>They register, collect, file and pay tax in every country</li>
+      <li>ABC gets one payout and only handles its own profit tax</li>
+      <li>Costs more: Managed Payments is about <b>3.5% extra per sale</b></li>
+      <li>Their name appears on the invoice as the seller</li>
+    </ul></div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Returns</span>
+  <h2>A year of subscriptions in <span id="yCountry">Germany</span></h2>
+  <div class="year">
+    <div class="card" style="display:flex;flex-direction:column;gap:14px">
+      <div class="group"><label for="subs">Subscribers in this country: <span class="num" id="subsV">200</span></label><input type="range" id="subs" min="10" max="2000" step="10" value="200"></div>
+      <div class="group"><label for="cost">ABC's costs as % of revenue: <span class="num" id="costV">60%</span></label><input type="range" id="cost" min="20" max="95" step="5" value="60"><p class="hint">Servers, data, salaries. Profit tax is only paid on what's left.</p></div>
+      <p class="hint">Uses the plan, billing period, buyer type and fee settings chosen above.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="stats">
+        <div class="stat"><span class="k">Customers paid in total</span><span class="v" id="sPaid"></span></div>
+        <div class="stat tax"><span class="k">Tax handed to the government</span><span class="v" id="sTax"></span></div>
+        <div class="stat fee"><span class="k">Stripe fees</span><span class="v" id="sFee"></span></div>
+        <div class="stat keep"><span class="k">ABC revenue</span><span class="v" id="sKeep"></span></div>
+        <div class="stat"><span class="k">Home profit tax (≈14% of profit)</span><span class="v" id="sProfit"></span></div>
+      </div>
+      <div class="card" id="returnBox" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Country</th><th>Tax</th><th>Rate</th><th>ABC registers when</th><th>Return filed</th><th>Paid to</th></tr></thead>
+    <tbody id="retTable"></tbody>
+  </table></div>
+  <p class="foot">Tax rates and thresholds come from 2026 public sources; Stripe fees are Stripe Switzerland's published rates. The 14% profit-tax rate is a rough illustration. Exact figures depend on the Stripe contract, canton and tax adviser.</p>
+</section>
+</div>
+
+<script>
+const C=[
+ {id:'ch',flag:'🇨🇭',name:'Switzerland',tax:'Swiss VAT',rate:8.1,first:false,home:true,th:'Worldwide turnover over CHF 100,000 (home registration)',ret:'Quarterly',per:4,office:'Swiss Federal Tax Administration',b2b:'charge',vat:'CHE-123.456.789 MWST'},
+ {id:'de',flag:'🇩🇪',name:'Germany',tax:'German VAT (EU OSS)',rate:19,first:true,th:'First sale. One EU OSS registration covers all 27 countries.',ret:'Quarterly (one OSS return for the whole EU)',per:4,office:'German tax office, via the EU OSS return',b2b:'rc',vat:'DE123456789'},
+ {id:'fr',flag:'🇫🇷',name:'France',tax:'French VAT (EU OSS)',rate:20,first:true,th:'First sale (same EU OSS registration)',ret:'Quarterly (EU OSS)',per:4,office:'French tax office, via the EU OSS return',b2b:'rc',vat:'FR12345678901'},
+ {id:'hu',flag:'🇭🇺',name:'Hungary',tax:'Hungarian VAT (EU OSS)',rate:27,first:true,th:'First sale (same EU OSS registration)',ret:'Quarterly (EU OSS)',per:4,office:'Hungarian tax office, via the EU OSS return',b2b:'rc',vat:'HU12345678'},
+ {id:'uk',flag:'🇬🇧',name:'United Kingdom',tax:'UK VAT',rate:20,first:true,th:'First sale',ret:'Quarterly',per:4,office:'HM Revenue & Customs',b2b:'rc',vat:'GB123456789'},
+ {id:'in',flag:'🇮🇳',name:'India',tax:'GST (OIDAR)',rate:18,first:true,th:'First sale to a consumer. Needs an Indian representative.',ret:'Monthly (GSTR-5A, by the 20th)',per:12,office:'Indian GST authority',b2b:'rc',vat:'27ABCDE1234F1Z5'},
+ {id:'au',flag:'🇦🇺',name:'Australia',tax:'GST',rate:10,first:false,th:'Sales to Australia over AUD 75,000 a year',ret:'Quarterly',per:4,office:'Australian Taxation Office',b2b:'rc',vat:'ABN 12 345 678 901'},
+ {id:'jp',flag:'🇯🇵',name:'Japan',tax:'Consumption tax',rate:10,first:false,th:'Japanese sales over about JPY 10m (adviser to confirm)',ret:'Yearly, with interim payments',per:1,office:'Japan National Tax Agency',b2b:'rc',vat:'T1234567890123'},
+ {id:'on',flag:'🇨🇦',name:'Canada · Ontario',tax:'HST',rate:13,first:false,th:'Sales to Canada over CAD 30,000 a year',ret:'Quarterly',per:4,office:'Canada Revenue Agency',b2b:'rc',vat:'123456789RT0001'},
+ {id:'sg',flag:'🇸🇬',name:'Singapore',tax:'GST',rate:9,first:false,th:'Global turnover over SGD 1m and Singapore sales over SGD 100,000',ret:'Quarterly',per:4,office:'IRAS',b2b:'rc',vat:'M91234567X'},
+ {id:'ny',flag:'🇺🇸',name:'USA · New York City',tax:'Sales tax',rate:8.875,first:false,th:'New York sales over $500,000 and 100 transactions',ret:'Quarterly (per state)',per:4,office:'New York State Dept. of Taxation',b2b:'charge',vat:'EIN 12-3456789'},
+ {id:'tx',flag:'🇺🇸',name:'USA · Texas',tax:'Sales tax (on 80% of price)',rate:6.6,first:false,th:'Texas sales over $500,000',ret:'Monthly or quarterly (per state)',per:4,office:'Texas Comptroller',b2b:'charge',vat:'EIN 12-3456789'},
+ {id:'fl',flag:'🇺🇸',name:'USA · Florida',tax:'No tax on SaaS',rate:0,first:false,th:'Never: SaaS isn\'t taxable in Florida',ret:'None',per:0,office:'—',b2b:'none',vat:'EIN 12-3456789'},
+ {id:'cn',flag:'🇨🇳',name:'China',tax:'Not supported',rate:0,first:false,th:'Foreign sellers can\'t register. Often blocked at launch.',ret:'—',per:0,office:'—',b2b:'none',vat:'',blocked:true},
+];
+const PLANS=[{id:'std',name:'Standard',m:29,y:290},{id:'pro',name:'Pro',m:79,y:790},{id:'adv',name:'Advanced',m:199,y:1990}];
+const S={c:'de',plan:'std',int:'m'};
+const FIXED=0.37; // CHF 0.30 ≈ $0.37
+const $=id=>document.getElementById(id);
+const money=v=>'$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0=v=>'$'+Math.round(v).toLocaleString('en-US');
+
+function chipRow(el,items,key,label){
+  el.innerHTML='';
+  items.forEach(it=>{
+    const b=document.createElement('button');b.type='button';b.className='chip';
+    b.textContent=label(it);b.setAttribute('aria-pressed',S[key]===it.id);
+    b.addEventListener('click',()=>{S[key]=it.id;render();});
+    el.appendChild(b);
+  });
+}
+function calc(){
+  const c=C.find(x=>x.id===S.c), p=PLANS.find(x=>x.id===S.plan);
+  const price=S.int==='m'?p.m:p.y;
+  const b2b=$('b2b').checked, reg=$('reg').checked, incl=$('incl').checked, noconv=$('noconv').checked;
+  let rate=c.rate, why='';
+  if(c.blocked){rate=0;why='blocked';}
+  else if(c.rate===0){why='notax';}
+  else if(!reg){rate=0;why='unreg';}
+  else if(b2b && c.b2b==='rc'){rate=0;why='rc';}
+  let sub,tax,total;
+  if(incl&&rate>0){total=price;sub=price/(1+rate/100);tax=total-sub;}
+  else{sub=price;tax=price*rate/100;total=sub+tax;}
+  const card=c.home?2.9:3.25, conv=noconv?0:2, bill=0.7, stax=(tax>0)?0.5:0;
+  const pctSum=card+conv+bill+stax;
+  const fee=total*pctSum/100+FIXED;
+  const keep=total-tax-fee;
+  const breakTxt=`${c.home?'Swiss':'Foreign'} card ${card}% + CHF 0.30${conv?' · conversion 2%':''} · Billing 0.7%${stax?' · Stripe Tax 0.5%':''}`;
+  return {c,p,price,rate,why,sub,tax,total,fee,keep,b2b,reg,incl,breakTxt,pctSum};
+}
+function render(){
+  chipRow($('countries'),C,'c',x=>x.flag+' '+x.name);
+  chipRow($('plans'),PLANS,'plan',x=>`${x.name} · $${x.m}`);
+  chipRow($('intervals'),[{id:'m',n:'Monthly'},{id:'y',n:'Annual'}],'int',x=>x.n);
+  const r=calc(), c=r.c;
+  $('regHint').textContent = c.first ? `${c.name}: ABC must register from the first sale.` : `${c.name}: ${c.th}. Untick "registered" to see a sale before that point.`;
+  $('coPlan').textContent=`${r.p.name} · ${S.int==='m'?'monthly':'annual'}`;
+  $('coBase').textContent=money(r.price);
+  $('coCountry').textContent=c.flag+' '+c.name;
+  $('coTaxIdRow').hidden=!r.b2b||!c.vat;
+  $('coTaxId').textContent=c.vat+' ✓';
+  $('coSub').textContent=money(r.sub);
+  const lbl={blocked:'Checkout blocked for this country',notax:`${c.tax}`,unreg:'No tax: ABC not registered here yet',rc:'Tax: 0% (reverse charge)'}[r.why];
+  $('coTaxLbl').textContent= lbl || `${c.tax} (${c.rate}%${r.incl?', included':''})`;
+  $('coTax').textContent=money(r.tax);
+  $('coTotal').textContent=c.blocked?'—':money(r.total);
+  const notes={
+    blocked:'Many SaaS companies leave mainland China out at launch, so Checkout refuses this billing country.',
+    notax:'This US state doesn\'t tax SaaS, so the subscriber pays exactly the plan price.',
+    unreg:'Below the threshold ABC charges no local tax. Stripe Tax keeps counting sales and warns before the threshold is reached.',
+    rc:`The business accounts for the ${c.tax} itself ("reverse charge"). The invoice shows 0% with a note and the buyer's tax ID.`,
+  };
+  $('coNote').textContent = notes[r.why] || (r.incl?`Price includes ${c.tax}. The customer pays ${money(r.total)} and ${money(r.tax)} of it is tax.`:`${c.tax} is added on top because the subscriber's billing address and card are in ${c.name}.`);
+  const tot=c.blocked?0:r.total;
+  $('splitTotal').textContent=money(tot);
+  const pct=v=>tot?Math.max(0,v/tot*100):0;
+  const setBar=(id,v,label)=>{const el=$(id);el.style.flexBasis=pct(v)+'%';el.textContent=pct(v)>9?label:'';};
+  setBar('barKeep',c.blocked?0:r.keep,money(r.keep));setBar('barTax',c.blocked?0:r.tax,money(r.tax));setBar('barFee',c.blocked?0:r.fee,money(r.fee));
+  $('vKeep').textContent=c.blocked?'—':money(r.keep);
+  $('vTax').textContent=c.blocked?'—':money(r.tax);
+  $('vFee').textContent=c.blocked?'—':money(r.fee);
+  $('feeBreak').textContent=c.blocked?'No payment':`${r.breakTxt} = ${(r.fee/r.total*100).toFixed(1)}% of this payment`;
+  $('taxDest').innerHTML=`To ${r.tax>0?c.office:'no tax office'}<small>${r.tax>0?'Collected by ABC, handed over in its tax return ('+c.ret+')':'Nothing to hand over for this sale'}</small>`;
+  const steps = c.blocked ? [
+    ['c','Subscriber tries to pay','Billing country is China, so Checkout stops the purchase.'],
+  ] : [
+    ['c','Subscriber clicks Subscribe on '+money(r.price),'The pricing page shows the plan price.'],
+    ['s','Stripe works out the location and tax',`Billing address + card say ${c.name}. ${r.tax>0?`Adds ${c.tax} ${c.rate}% = ${money(r.tax)}.`:'No tax for this sale.'}`],
+    ['c','Subscriber pays '+money(r.total),'The card is charged the full amount, tax included.'],
+    ['s','Stripe pays out to ABC',`After fees (${money(r.fee)}), ${money(r.total-r.fee)} reaches ABC's bank account.`],
+    ...(r.tax>0?[['g','ABC sets the tax aside',`${money(r.tax)} isn't ABC's money. It's held until the next return.`],
+    ['t','ABC files the return and pays',`${c.ret}: it reports ${c.name} sales and pays the collected tax to the ${c.office}.`]]:[]),
+    ['g','ABC keeps '+money(r.keep),'This is revenue. Home profit tax is due later only on profit after costs.'],
+  ];
+  const tag={c:['Subscriber','c'],s:['Stripe','s'],g:['ABC','g'],t:['Tax office','t']};
+  $('flow').innerHTML=steps.map((s,i)=>`<div class="step"><span class="dot">${i+1}</span><span><b>${s[1]}</b><span class="who ${tag[s[0]][1]}">${tag[s[0]][0]}</span><br>${s[2]}</span></div>`).join('');
+  const subs=+$('subs').value, cost=+$('cost').value/100;
+  $('subsV').textContent=subs;$('costV').textContent=Math.round(cost*100)+'%';
+  const n=subs*(S.int==='m'?12:1);
+  const paid=c.blocked?0:r.total*n, taxY=c.blocked?0:r.tax*n, feeY=c.blocked?0:r.fee*n, keepY=c.blocked?0:r.keep*n;
+  const profit=Math.max(0,keepY*(1-cost)), ptax=profit*0.14;
+  $('yCountry').textContent=c.name;
+  $('sPaid').textContent=money0(paid);$('sTax').textContent=money0(taxY);$('sFee').textContent=money0(feeY);$('sKeep').textContent=money0(keepY);$('sProfit').textContent=money0(ptax);
+  const perRet=c.per?taxY/c.per:0;
+  $('returnBox').innerHTML = (taxY>0)
+    ? `<h3>What ABC hands over</h3><p style="color:var(--ink-2);font-size:14px">It files <b>${c.per} return${c.per>1?'s':''} a year</b> for ${c.name} (${c.ret}). Each one pays about <b class="num">${money0(perRet)}</b> to the ${c.office}. Over the year that's <b class="num">${money0(taxY)}</b>, all of it money customers paid ${r.incl?'inside the price':'on top of the plan price'}.</p><p style="color:var(--ink-2);font-size:14px">Stripe fees for the year are about <b class="num">${money0(feeY)}</b>. On a profit of about <b class="num">${money0(profit)}</b> from these subscribers, home profit tax is about <b class="num">${money0(ptax)}</b>, paid once a year.</p>`
+    : `<h3>Nothing to hand over here</h3><p style="color:var(--ink-2);font-size:14px">${c.blocked?'Sales are blocked, so there is no tax and no revenue.':'No local tax was charged for these sales'+(r.why==='unreg'?' because ABC isn\'t registered yet. Once sales pass the threshold, it registers and starts charging.':r.why==='rc'?' because business buyers self-account (reverse charge). These sales are often still listed on the return.':'.')} Home profit tax still applies to the profit, about <b class="num">${money0(ptax)}</b> here.</p>`;
+  $('retTable').innerHTML=C.map(x=>`<tr class="${x.id===S.c?'sel':''}"><td>${x.flag} ${x.name}</td><td>${x.tax}</td><td class="num">${x.rate?x.rate+'%':'—'}</td><td>${x.th}</td><td>${x.ret}</td><td>${x.office}</td></tr>`).join('');
+}
+['b2b','reg','incl','noconv','subs','cost'].forEach(id=>$(id).addEventListener('input',render));
+render();
+</script>
+</body></html>
